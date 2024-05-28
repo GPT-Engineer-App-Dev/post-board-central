@@ -1,8 +1,10 @@
 import { Box, Container, VStack, Text, Input, Textarea, Button, Flex, Heading } from "@chakra-ui/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePosts, useAddPost } from '../integrations/supabase/api';
 
 const Index = () => {
-  const [posts, setPosts] = useState([]);
+  const { data: posts, isLoading, isError } = usePosts();
+  const addPostMutation = useAddPost();
   const [newPost, setNewPost] = useState({ title: "", content: "" });
 
   const handleInputChange = (e) => {
@@ -13,10 +15,15 @@ const Index = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (newPost.title && newPost.content) {
-      setPosts([...posts, newPost]);
-      setNewPost({ title: "", content: "" });
+      addPostMutation.mutate({ title: newPost.title, body: newPost.content });
     }
   };
+
+  useEffect(() => {
+    if (addPostMutation.isSuccess) {
+      setNewPost({ title: "", content: "" });
+    }
+  }, [addPostMutation.isSuccess]);
 
   return (
     <Box>
@@ -26,18 +33,24 @@ const Index = () => {
         </Container>
       </Box>
       <Container maxW="container.lg" py={4}>
-        <VStack spacing={4} align="stretch">
-          {posts.length > 0 ? (
-            posts.map((post, index) => (
-              <Box key={index} p={4} shadow="md" borderWidth="1px" borderRadius="md">
-                <Heading as="h3" size="md">{post.title}</Heading>
-                <Text mt={2}>{post.content}</Text>
-              </Box>
-            ))
-          ) : (
-            <Text>No posts yet. Be the first to post!</Text>
-          )}
-        </VStack>
+        {isLoading ? (
+          <Text>Loading...</Text>
+        ) : isError ? (
+          <Text>Error loading posts</Text>
+        ) : (
+          <VStack spacing={4} align="stretch">
+            {posts.length > 0 ? (
+              posts.map((post) => (
+                <Box key={post.id} p={4} shadow="md" borderWidth="1px" borderRadius="md">
+                  <Heading as="h3" size="md">{post.title}</Heading>
+                  <Text mt={2}>{post.body}</Text>
+                </Box>
+              ))
+            ) : (
+              <Text>No posts yet. Be the first to post!</Text>
+            )}
+          </VStack>
+        )}
       </Container>
       <Box as="form" onSubmit={handleSubmit} bg="gray.100" p={4} position="fixed" bottom={0} width="100%">
         <Container maxW="container.lg">
@@ -56,7 +69,7 @@ const Index = () => {
               onChange={handleInputChange}
               isRequired
             />
-            <Button type="submit" colorScheme="blue" width="full">Submit Post</Button>
+            <Button type="submit" colorScheme="blue" width="full" isLoading={addPostMutation.isLoading}>Submit Post</Button>
           </VStack>
         </Container>
       </Box>
